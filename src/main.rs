@@ -1,3 +1,5 @@
+mod fs;
+
 use std::path::PathBuf;
 use std::io;
 
@@ -26,6 +28,11 @@ fn main() -> io::Result<()> {
         .map_or(default_out, |path| PathBuf::from(path));
 
     println!("Using output directory: '{}'", outdir.display());
+
+    // safety: this argument is required by clap and thus is always Some<T>
+    let srcdir = PathBuf::from(matches.value_of("SRCDIR").unwrap());
+
+    fs::scan(srcdir);
 
     return Ok(());
 }
