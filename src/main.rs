@@ -1,7 +1,9 @@
 mod fs;
+mod compiler;
 
 use std::path::PathBuf;
 use std::io;
+use std::process::exit;
 
 fn main() -> io::Result<()> {
     let app = clap::App::new(clap::crate_name!())
@@ -43,16 +45,38 @@ fn main() -> io::Result<()> {
         let mut default_out = pwd.clone();
         default_out.push("dist");
 
-        matches.value_of("outdir")
-            .map_or(default_out, |outdir_val| PathBuf::from(outdir_val))
+        let outdir = matches.value_of("outdir")
+            .map_or(default_out, |outdir_val| PathBuf::from(outdir_val));
+
+        if outdir == default_out {
+            if !outdir.exists() {
+                std::fs::create_dir(outdir.clone())?;
+            }
+        }
+
+        outdir
     };
 
     let follow_links = matches.is_present("follow-links");
 
+    if !indir.exists() {
+        eprintln!("Input directory '{}' not found", indir.display());
+        exit(1);
+    }
+    if !outdir.exists() {
+        eprintln!("Output directory '{}' not found", outdir.display());
+        exit(1);
+    }
+
     println!("Using input directory: '{}'", indir.display());
     println!("Using output directory: '{}'", outdir.display());
 
-    let indir_scan = fs::scan(indir, follow_links);
+    let indir_scan = fs::scan(&indir, follow_links)?;
+
+    for shtml in &indir_scan.shtml_files {
+        println!("Compiling '{}' ...", shtml.display());
+        compiler::compile(shtml, &indir, &outdir);
+    }
 
     return Ok(());
 }
